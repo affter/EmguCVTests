@@ -64,7 +64,7 @@ namespace EmguCV
                 //Draw the matched keypoints
                 Mat result = new Mat();
                 Features2DToolbox.DrawMatches(modelImage, modelKeyPoints, observedImage, observedKeyPoints,
-                   matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), null);
+                   matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), mask);
                 return result;
 
             }
