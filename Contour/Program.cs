@@ -27,57 +27,65 @@ namespace Contour
             CvInvoke.DrawContours(img, contours, -1, new MCvScalar(0, 0, 255));
             var imgForNormalsWithoutSharpEdges = img.Clone();
             CvInvoke.Imshow("Contour", img);
-            Point startPoint = Point.Empty;
-            Point endPoint = Point.Empty;
-            for (int i = 0; i < contours[0].Size-10; i+=10)
+            for (int i = 0; i < contours[0].Size - 10; i += 10)
             {
-                CalculateNormal(img, contours[0][i], contours[0][i + 10], out startPoint, out endPoint);
-                CvInvoke.Line(img, contours[0][i], contours[0][i + 10], new MCvScalar(0, 255, 0));
-                CvInvoke.Line(img, startPoint, endPoint, new MCvScalar(0, 255, 0));
-                if (i+20 > contours[0].Size)
+                DrawNormal(img, contours[0][i], contours[0][i + 10]);
+                if (i + 20 > contours[0].Size)
                 {
-                    CalculateNormal(img, contours[0][i+10], contours[0][0], out startPoint, out endPoint);
-                    CvInvoke.Line(img, contours[0][i+10], contours[0][0], new MCvScalar(0, 255, 0));
-                    CvInvoke.Line(img, startPoint, endPoint, new MCvScalar(0, 255, 0));
+                    DrawNormal(img, contours[0][i + 10], contours[0][0]);
                 }
             }
             CvInvoke.Imshow("Normals", img);
             var normalBases = CalculateNormalBases(contours);
             foreach (var normalBase in normalBases)
             {
-                CalculateNormal(imgForNormalsWithoutSharpEdges, normalBase.Item1, normalBase.Item2, out startPoint, out endPoint);
-                CvInvoke.Line(imgForNormalsWithoutSharpEdges, normalBase.Item1, normalBase.Item2, new MCvScalar(0, 255, 0));
-                CvInvoke.Line(imgForNormalsWithoutSharpEdges, startPoint, endPoint, new MCvScalar(0, 255, 0));
+                DrawNormal(imgForNormalsWithoutSharpEdges, normalBase.Item1, normalBase.Item2); ;
             }
             CvInvoke.Imshow("ImageWithNormalsWithoutSharpEdges", imgForNormalsWithoutSharpEdges);
             CvInvoke.WaitKey();
         }
 
-        private static IEnumerable<Tuple<Point,Point>> CalculateNormalBases(VectorOfVectorOfPoint contours, double alpha = 5, double beta = 6)
+        private static void DrawNormal(CvArray<byte> img, Point point1, Point point2)
         {
-            var t = new List<Tuple<Point, Point>>();
-            for (int i = 0; i < contours[0].Size - 1; i++)
-            {
-                Point start = contours[0][i];
-                Point end = contours[0][++i];
-                double length = GetLength(start, end);
-                while (length < alpha && i != contours[0].Size - 1)
-                {
-                    end = contours[0][++i];
-                    length = GetLength(start, end);
-                }
-                length = GetLength(start, end);
-                if (length > beta)
-                {
-                   t.Add(new Tuple<Point, Point>(start, end));
-                }
-            }
-            return t;
+            Point startPoint = Point.Empty;
+            Point endPoint = Point.Empty;
+            CalculateNormal(img, point1, point2, out startPoint, out endPoint);
+            CvInvoke.Line(img, point1, point2, new MCvScalar(0, 255, 0));
+            CvInvoke.Line(img, startPoint, endPoint, new MCvScalar(0, 255, 0));
         }
 
-        private static double GetLength(Point start, Point end)
+        private static IEnumerable<Tuple<Point, Point>> CalculateNormalBases(VectorOfVectorOfPoint contours, int coeff = 5)
         {
-            return Math.Sqrt((end.X - start.X) * (end.X - start.X) + (end.Y - start.Y) * (end.Y - start.Y));
+            var t = new List<Tuple<Point, Point>>();
+            Point start = contours[0][0];
+            Point end = contours[0][1];
+            int diffX = 0, diffY = 0;
+            for (int i = 1; i < contours[0].Size - 1; i++)
+            {
+                diffX = Math.Abs(end.X - start.X);
+                diffY = Math.Abs(end.Y - start.Y);
+                if (diffX < coeff && diffY < coeff)
+                {
+                    end = contours[0][++i];
+                }
+                else
+                {
+                    t.Add(new Tuple<Point, Point>(start, end));
+                    start = end;
+                    end = contours[0][++i];
+                }
+            }
+            int j = contours[0].Size - 1;
+            start = contours[0][0];
+            end = contours[0][j];
+            diffX = Math.Abs(end.X - start.X);
+            diffY = Math.Abs(end.Y - start.Y);
+            while (diffX < coeff && diffY < coeff)
+            {
+                end = contours[0][--j];
+            }
+            t.Add(new Tuple<Point, Point>(end, start));
+            return t;
         }
 
         private static void CalculateNormal(CvArray<byte> img, Point point1, Point point2, out Point startPoint, out Point endPoint, int normalLength = 10)
@@ -99,7 +107,14 @@ namespace Contour
             int endY;
             if (coeff == 0)
             {
-                endY = startY - normalLength;
+                if (point1.X > point2.X)
+                {
+                    endY = startY - normalLength;
+                }
+                else
+                {
+                    endY = startY + normalLength;
+                }
             }
             else
             {
